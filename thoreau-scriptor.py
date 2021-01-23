@@ -43,31 +43,6 @@ tagcolors = [
   ("violet", "#bfb2f3"),
 ]
 
-def dist_ell (p):
-  ratio2 = 2
-  mx = termw/2
-  my = termh/2
-  x,y = p
-  dy = y-my
-  dx = ratio2 * (x-mx)
-  return sqrt (dx**2 + dy**2)
-
-def dist (p):
-  mx = termw/2
-  my = termh/2
-  x,y = p
-  dy = yratio * (y-my)
-  dx = x-mx
-  return sqrt (dx**2 + dy**2)
-
-def manh_dist (p):
-  mx = termw/2
-  my = termh/2
-  x,y = p
-  dy = yratio * (y-my)
-  dx = x-mx
-  return abs (dx) + abs (dy)
-
 def create_emptys ():
   global sc,rowlist
   rowlist = []
@@ -76,14 +51,12 @@ def create_emptys ():
   for y in range (1,termh+1):
     a = termw//2+1
     b = termw
-    while dist_ell ((a,y)) <= termh//2-1:
-      a += 1
+    a += randint (1,6)
     rowlist.append ((y,a,b,True))
   for y in range (termh,0,-1):
     a = 0
     b = termw//2-1
-    while dist_ell ((b,y)) <= termh//2-1:
-      b -= 1
+    b -= randint (1,6)
     rowlist.append ((y,a,b,False))
   # print ("rowlist =",rowlist)
   rllen = sum ([(b-a) for (i,a,b,right) in rowlist])
@@ -96,7 +69,7 @@ def read_seque1 (): # 15.7 s
   seque = defaultdict (list)
   for i in range (1,7):
     with open (filename (i)) as f:
-      print ("Lege", filename (i))
+      log_me ("A",f"Lege {filename (i)}")
       reader = csv.reader (f,delimiter='\t')
       for row in reader:
         k = " ".join (row [:-2])
@@ -105,14 +78,14 @@ def read_seque1 (): # 15.7 s
   return seque
 
 def read_seque2 (): # 7.7 s
-  print ("Lege", dumpfile)
+  log_me ("A", f"Lege {dumpfile}")
   try:
     seque = pickle.load (open (dumpfile, "rb"))
   except FileNotFoundError:
-    print ("Non trovate.")
+    log_me ("A","Non trovate.")
     seque = read_seque1 ()
     pickle.dump (seque, open (dumpfile, "wb"))
-    print ("Scribeva", dumpfile)
+    log_me ("A", f"Scribeva {dumpfile}")
   return seque
 
 def seque_plus2 (s,maxm):
@@ -134,39 +107,36 @@ def seque_plus (s,n):
 
 search_wd = ""
 
+def log_me (c, s):
+  if c in logging:
+    print (s)
+
 def prt (*xs,sep=' ',end='\n'):
   x = sep.join ([str (x) for x in xs])
   text2.insert ("end", x + end)
 
 # lines = ['line 1\n','line 2\n', 'line 3\n']
 def read_args ():
+  global logging
   parser = argparse.ArgumentParser (description=
     'Lege regulas, dictionarios e documentos.')
   parser.add_argument ('-g', '--ngrammas', nargs='+', 
-    action='extend')
+    action='extend', default=[])
   parser.add_argument ('-r', '--regulas', nargs='+', 
-    action='extend')
+    action='extend', default=[])
   parser.add_argument ('-f', '--files', nargs='+', 
-    action='extend')
+    action='extend', default=[])
   parser.add_argument ('-d', '--dicts', nargs='+', 
-    action='extend')
+    action='extend', default=[])
+  parser.add_argument ('-l', '--log', default = "AT")
   args = parser.parse_args ()
-
+  logging = args.log
   ngrammas,dicts,regulas,lines = [],[],[],[]
   dic_wds = {}
-  if not args.ngrammas:
-    args.ngrammas = []
-  if not args.regulas:
-    args.regulas = []
-  if not args.files:
-    args.files = []
-  if not args.dicts:
-    args.dicts = []
-
   start = time.time ()
   seque = read_seque2 ()
   end = time.time ()
-  print (end - start, "secundas")
+  log_me ("T", f"{end - start:.3f} secundas")
 
   prt ("Files:")
   lines = (["¶"])
@@ -235,7 +205,7 @@ def remove_all_tags ():
 
 def add_seques (s):
   global wds
-  print ("add_seques (s)")
+  # print ("add_seques (s)")
   # generate () # ?
   remove_all_tags ()
   rllen = create_emptys ()
@@ -244,11 +214,11 @@ def add_seques (s):
   
   sg = seque_plus (s,rllen)
   result = str3 (sg)
-  print ("len (result) = ",len (result))
-  print (str(result)[:80])
+  # print ("len (result) = ",len (result))
+  # print (str(result)[:80])
   wds = sorted (sg,key=aeiou)
-  print ("wds = ")
-  print (str(wds)[:80])
+  # print ("wds = ")
+  # print (str(wds)[:80])
 
   # print (s)
   # print ("inner_length ()",inner_length (s))
@@ -316,11 +286,12 @@ def add_selected ():
   text2.insert (INSERT, f" {search_wd}")
   idx = text2.index (INSERT)
   new_seques = five_words (idx)
-  print (f"new_seques: '{new_seques}'")
+  # print (f"new_seques: '{new_seques}'")
   add_seques (new_seques)
 
 def distrlen2 (d,lst):
   s = " ".join ([x[0] for x in lst])
+  log_me ("C",f's = "{s}"\n')
   k,ks = 0,[]
   for x in lst:
     k += len (x[0])+1
@@ -336,15 +307,15 @@ def distrlen2 (d,lst):
       c.append (abs (a-b))
     # print ([f"{x:.2f}" for x in c])
     e.append (c.index (min (c)))
-  print (str(e)[:80])
-  print ("len e =",len (e))
-  print (" ".join ([x[0] for x in lst])[:80])
-  print (" ".join ([str(i).rjust (len (x [0]),"z")[-len (x [0]):] for i,x in enumerate (lst)])[:80])
-  print (" ".join ([(x-1)*"x" for x in d])[:80])
+  # print (str(e)[:80])
+  # print ("len e =",len (e))
+  # print (" ".join ([x[0] for x in lst])[:80])
+  # print (" ".join ([str(i).rjust (len (x [0]),"z")[-len (x [0]):] for i,x in enumerate (lst)])[:80])
+  # print (" ".join ([(x-1)*"x" for x in d])[:80])
   vs = {i:z for i,z in enumerate ([lst[a+1:b+1] for a,b in zip ([-1]+e,e)])}
   
-  print ("vs =")
-  print (str(vs)[:80])
+  # print ("vs =")
+  # print (str(vs)[:80])
   return vs 
 
 def ranked_score (x):
@@ -352,20 +323,20 @@ def ranked_score (x):
   return (10 ** tg) * score  
 
 def distribute (wds,rowlist):
-  print ("distribute (wds,rowlist)")
+  # print ("distribute (wds,rowlist)")
   d = []
   for (y,x1,x2,right) in rowlist:
     d.append (x2-x1)
-  print ("d =")
-  print (str(d)[:80])
-  print ("sum d =", sum (d))
+  # print ("d =")
+  # print (str(d)[:80])
+  # print ("sum d =", sum (d))
   newlist = sorted (wds,key=ranked_score,reverse=True)
-  print ("sort1 =")
-  print (str(newlist)[:80])
+  # print ("sort1 =")
+  # print (str(newlist)[:80])
   newlist2 = sorted (wds,key=aeiou)
-  print ("sort2 =")
-  print (str(newlist2)[:80])
-  print ("len sort2 =", len (newlist2))
+  # print ("sort2 =")
+  # print (str(newlist2)[:80])
+  # print ("len sort2 =", len (newlist2))
   dl2 = distrlen2 (d,newlist2)
   return dl2
   # return dl
@@ -397,15 +368,15 @@ def get_screen_size ():
   global hc,wc,termw,termh
   w = text1.winfo_width()
   h = text1.winfo_height()
-  print(f"w × h = {w} × {h}")
+  # print(f"w × h = {w} × {h}")
   if hc:
     termw = w // wc
     termh = h // hc
   else:
     wc = w // termw
     hc = h // termh
-  print(f"wc × hc = {wc} × {hc}")
-  print(f"termw × termh = {termw} × {termh}")
+  # print(f"wc × hc = {wc} × {hc}")
+  # print(f"termw × termh = {termw} × {termh}")
 
 def on_leave (event):
   global sel
@@ -433,7 +404,7 @@ def update_clock_mov ():
     proginit = 0 
     start_mov = time.time ()
   if proginit >= 100:
-    print ("proginit > 100")
+    # print ("proginit > 100")
     get_screen_size ()
     add_selected () # dont! Only when inited?
     mov = False
