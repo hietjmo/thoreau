@@ -1,4 +1,5 @@
 
+# python thoreau-scriptor.py --log +BCDEFGHW
 # python thoreau-scriptor.py -f arbores.txt thoreau-initio.txt
 
 from collections import defaultdict
@@ -6,15 +7,16 @@ from tkinter.ttk import Progressbar
 from random import randint
 import tkinter.font as tkfont
 import numpy as np
-from math import sqrt
+from math import sqrt,sin,cos
 from tkinter import *
 import argparse
 import re
 import csv
 import time
 import pickle
+import pprint
+from tabulate import tabulate
 
-# p = re.compile (r'[a-zA-ZÀ-ÖØ-öø-ÿ]+')
 p = re.compile (r"""
   [a-zA-ZÀ-ÖØ-öø-ÿ]+|
   [0-9.]+|
@@ -32,6 +34,11 @@ rowlist = []
 termw,termh = 100,20
 yratio = 2.1690 
 hc,wc = None,None
+logwin = None
+note = None
+logs = defaultdict (lambda: '')
+logging = ""
+tabs = []
 after_id = None
 
 tagcolors = [
@@ -48,17 +55,17 @@ def create_emptys ():
   rowlist = []
   md = termh//2
   sc = defaultdict (lambda: ' ')
+  r = randint (0,9999)
   for y in range (1,termh+1):
     a = termw//2+1
     b = termw
-    a += randint (1,6)
+    a += round (1.5 + 3 * sin ((y+r)/2)) + 5
     rowlist.append ((y,a,b,True))
   for y in range (termh,0,-1):
     a = 0
     b = termw//2-1
-    b -= randint (1,6)
+    b += round (1.5 + 3 * sin ((y+r)/2)) - 5
     rowlist.append ((y,a,b,False))
-  # print ("rowlist =",rowlist)
   rllen = sum ([(b-a) for (i,a,b,right) in rowlist])
   return rllen
 
@@ -69,38 +76,45 @@ def read_seque1 (): # 15.7 s
   seque = defaultdict (list)
   for i in range (1,7):
     with open (filename (i)) as f:
-      log_me ("A",f"Lege {filename (i)}")
+      print (f"Lege {filename (i)}")
       reader = csv.reader (f,delimiter='\t')
       for row in reader:
         k = " ".join (row [:-2])
-        v = (row [-2],int (row [-1]),i)
+        v = (row [-2],int (row [-1]),i-1)
         seque [k].append (v)
   return seque
 
 def read_seque2 (): # 7.7 s
-  log_me ("A", f"Lege {dumpfile}")
+  print (f"Lege {dumpfile}")
   try:
     seque = pickle.load (open (dumpfile, "rb"))
   except FileNotFoundError:
-    log_me ("A","Non trovate.")
+    print ("Non trovate.")
     seque = read_seque1 ()
     pickle.dump (seque, open (dumpfile, "wb"))
-    log_me ("A", f"Scribeva {dumpfile}")
+    print (f"\nScribeva {dumpfile}")
   return seque
+
+def add_to (s0,b,c):
+  s0 [c] = s0 [c] + b
+  return s0
 
 def seque_plus2 (s,maxm):
   n = maxm
   parolas = p.findall (s)
-  s1 = []
+  # s1 = []
+  s1 = defaultdict (lambda: [0,0,0,0,0,0]) 
   for i in range (0,len(parolas)+1):
     si = " ".join (parolas [i:])
-    # s1.extend (seque [si][:n])
-    s1.extend (
-      [a for a in seque [si][:n] if a[0] not in [s[0] for s in s1]])
-    n = maxm - len (" ".join ([s[0] for s in s1]))
+    for a,b,c in seque [si][:n]:
+      s1 [a] = add_to (s1[a],b,c)
+    #s1.extend (seque [si][:n])
+    # s1.extend (
+    #  [a for a in seque [si][:n] if a[0] not in [s[0] for s in s1]])
+    n = maxm - len (" ".join ([k for k,v in s1.items()]))
     if n <= 0:
       break
-  return s1
+  return [[k,v[5],v[4],v[3],v[2],v[1],v[0]] for k,v in s1.items()]
 
 def seque_plus (s,n):
   return seque_plus2 (s, n)
@@ -109,11 +123,19 @@ search_wd = ""
 
 def log_me (c, s):
   if c in logging:
-    print (s)
+    if logwin:
+      current_tab = note.tab (note.select (), "text")
+      if current_tab == c:
+        text3.delete ("1.0", END)
+        text3.insert (END, s)
+    else:
+      print (f"{c} · {s}")
+    logs[c] = s
 
 def prt (*xs,sep=' ',end='\n'):
   x = sep.join ([str (x) for x in xs])
-  text2.insert ("end", x + end)
+  # text2.insert ("end", x + end)
+  log_me ("S",f"{x}")
 
 # lines = ['line 1\n','line 2\n', 'line 3\n']
 def read_args ():
@@ -128,15 +150,18 @@ def read_args ():
     action='extend', default=[])
   parser.add_argument ('-d', '--dicts', nargs='+', 
     action='extend', default=[])
-  parser.add_argument ('-l', '--log', default = "AT")
+  parser.add_argument ('-l', '--log', default = logging)
   args = parser.parse_args ()
-  logging = args.log
+  if args.log[0:1] == "+":
+    logging += args.log[1:]
+  else:
+    logging = args.log
   ngrammas,dicts,regulas,lines = [],[],[],[]
   dic_wds = {}
   start = time.time ()
   seque = read_seque2 ()
   end = time.time ()
-  log_me ("T", f"{end - start:.3f} secundas")
+  print (f"{end - start:.3f} secundas")
 
   prt ("Files:")
   lines = (["¶"])
@@ -150,15 +175,16 @@ def read_args ():
     prt (rgl)
   return seque,dic_wds,regulas,lines
 
+def aein (c):
+  b = "aeiounlsrtcdmpvbghfqjkxyzw"
+  return b.find (c)
+  
 def aeiou (ste):
-  if len (ste) == 2:
-    st,k = ste
-  if len (ste) == 3:
-    st,k,i = ste
+  [w,t5,t4,t3,t2,t1,t0] = ste
   a = "abcdefghijklmnopqrstuvwxyz"
   b = "aeiounlsrtcdmpvbghfqjkxyzw"
   result = ""
-  for c in st:
+  for c in w:
     d = c
     if c in b:
       d = a [b.index(c)]
@@ -180,7 +206,6 @@ def strs2 (lst):
 def str3 (lst):
   result = []
   for i,(a,b,c) in enumerate (lst):
-    # result.append ((f"{a} ({b}) ",c))
     result.append ((f"{a} ",c))
   return result
 
@@ -200,29 +225,38 @@ def remove_all_tags ():
   global tgs  
   tgs = []
   for tag in text1.tag_names ():
-    # print ("deleting", tag)
     text1.tag_remove (tag,"1.0","end")
+
+def table6 (dic):
+  table = []
+  for k,v in dic.items():
+    table.append ((k,str(v)))
+  return table
+
+def table4 (wds):
+  tb5h = ['i','parola','5','4','3','2','1','0','score']
+  newtab = []
+  for j,w in enumerate (wds):
+    [a,t5,t4,t3,t2,t1,t0] = w
+    newrow = [j,a,t5,t4,t3,t2,t1,t0,ranked_score(w)]
+    newtab.append (newrow)
+  return tabulate (newtab, headers=tb5h)
 
 def add_seques (s):
   global wds
-  # print ("add_seques (s)")
-  # generate () # ?
   remove_all_tags ()
-  rllen = create_emptys ()
+  rllen = create_emptys () # // 5
   text1.delete ("1.0", END)
-  # print ("nearest", rowlist_nearest())
   
   sg = seque_plus (s,rllen)
-  result = str3 (sg)
-  # print ("len (result) = ",len (result))
-  # print (str(result)[:80])
+  log_me ("C",f"sg: \n" + table4(sg) + 
+    f"\n\nrllen = {rllen}")
   wds = sorted (sg,key=aeiou)
-  # print ("wds = ")
-  # print (str(wds)[:80])
-
-  # print (s)
-  # print ("inner_length ()",inner_length (s))
+  log_me ("D",f"wds: \n" + table4(wds))
   distr_wds = distribute (wds,rowlist)
+  logtabu = pprint.pformat (table6 (distr_wds))
+  log_me ("F",f"distr_wds:\n{logtabu}") 
+  log_me ("G",f"rowlist:\n{tabulate(rowlist)}") 
   new_sc (distr_wds,rowlist)
   txt = []
   for y in range (1,termh+1):
@@ -230,24 +264,22 @@ def add_seques (s):
     for x in range (0,termw):
       ln += sc [(x,y)]
     txt.append (ln)
-    # print ("ln =\n" + str(ln)[:80])
-    # print (str(ln)[:80])
     f = distr_wds [y-1] + distr_wds [2*termh - y]
-    # print (" ".join (strs2(f))[:80])
-    # print ("f =\n" + str(f)[:80])
-    for (word,score,tg) in f:
+    for w in f:
+      [word,t5,t4,t3,t2,t1,t0] = w
+      tg = aein (word[0]) % 6
       h = re.search(r"(?<= )" + re.escape (word) + r"(?= )"," " + ln + " ")
       if h:
-        tgs.append ((tagcolors[tg-1][0],(h.start()-1,y),(h.end()-1,y)))
+        tgs.append ((tagcolors[tg][0],(h.start()-1,y),(h.end()-1,y)))
   text1.insert ("end", "\n".join (txt))
-
+  log_me ("H",f'\n'.join (txt))
   for tg in tgs:
     tagname,(x1,y1),(x2,y2) = tg
     text1.tag_add (tagname, f"{y1}.{x1}", f"{y2}.{x2}")
 
 def add_lines (lines):
   text2.delete ("1.0", END)
-  text2.insert ("1.0", "".join (lines))
+  text2.insert (END, "".join (lines))
 
 def itd (r,c):
   return str(r) + "." + str(c)
@@ -282,16 +314,23 @@ def add_selected ():
   global sel
   sel = None
   idx = text2.index (INSERT)
-  # print (f"ADD '{search_wd}' at {idx}")
   text2.insert (INSERT, f" {search_wd}")
   idx = text2.index (INSERT)
-  new_seques = five_words (idx)
-  # print (f"new_seques: '{new_seques}'")
-  add_seques (new_seques)
+  last_five = five_words (idx)
+  log_me ("E", f"last_five: '{last_five}'")
+  add_seques (last_five)
+
+def init_seq ():
+  global sel
+  sel = None
+  idx = text2.index (INSERT)
+  last_five = five_words (idx)
+  log_me ("E", f"last_five: '{last_five}'")
+  add_seques (last_five)
 
 def distrlen2 (d,lst):
   s = " ".join ([x[0] for x in lst])
-  log_me ("C",f's = "{s}"\n')
+  log_me ("B",f's = "{s}"\n')
   k,ks = 0,[]
   for x in lst:
     k += len (x[0])+1
@@ -307,39 +346,23 @@ def distrlen2 (d,lst):
       c.append (abs (a-b))
     # print ([f"{x:.2f}" for x in c])
     e.append (c.index (min (c)))
-  # print (str(e)[:80])
-  # print ("len e =",len (e))
-  # print (" ".join ([x[0] for x in lst])[:80])
-  # print (" ".join ([str(i).rjust (len (x [0]),"z")[-len (x [0]):] for i,x in enumerate (lst)])[:80])
-  # print (" ".join ([(x-1)*"x" for x in d])[:80])
   vs = {i:z for i,z in enumerate ([lst[a+1:b+1] for a,b in zip ([-1]+e,e)])}
-  
-  # print ("vs =")
-  # print (str(vs)[:80])
   return vs 
 
-def ranked_score (x):
-  wd,score,tg = x
-  return (10 ** tg) * score  
+def ranked_score (wd):
+  result = 0
+  for i,t in enumerate (wd[6:0:-1]):
+    result += (10 ** i) * t
+  return result  
 
 def distribute (wds,rowlist):
-  # print ("distribute (wds,rowlist)")
   d = []
   for (y,x1,x2,right) in rowlist:
     d.append (x2-x1)
-  # print ("d =")
-  # print (str(d)[:80])
-  # print ("sum d =", sum (d))
   newlist = sorted (wds,key=ranked_score,reverse=True)
-  # print ("sort1 =")
-  # print (str(newlist)[:80])
   newlist2 = sorted (wds,key=aeiou)
-  # print ("sort2 =")
-  # print (str(newlist2)[:80])
-  # print ("len sort2 =", len (newlist2))
   dl2 = distrlen2 (d,newlist2)
   return dl2
-  # return dl
 
 def new_sc (distr_wds,rowlist):
   global sc
@@ -347,8 +370,6 @@ def new_sc (distr_wds,rowlist):
   sc = defaultdict (lambda: ' ')
   for (y,x1,x2,right) in rowlist:
     assert distr_wds[b], f"distr_wds[{b}] does not exist"
-    # print (str(distr_wds[b])[:80])
-    #ns = [s[0] for s in sorted (distr_wds[b],key=lambda x:x[1],reverse=True)]
     ns = [s[0] for s in sorted (distr_wds[b],key=ranked_score,reverse=True)]
     a,k = 1,""
     while a <= len (ns) and len (" ".join (ns[:a])) <= x2 - x1:
@@ -406,7 +427,7 @@ def update_clock_mov ():
   if proginit >= 100:
     # print ("proginit > 100")
     get_screen_size ()
-    add_selected () # dont! Only when inited?
+    init_seq ()
     mov = False
 
 def update_clock_sel ():
@@ -431,6 +452,42 @@ def movect (event):
   global start,mov
   start = time.time ()
   mov = True
+
+def on_tab_selected (event):
+  selected_tab = event.widget.select ()
+  tab_text = event.widget.tab (selected_tab, "text")
+  if logs[tab_text]:
+    text3.delete ("1.0", END)
+    text3.insert (END, logs[tab_text])
+
+def on_close():
+  global logwin,logging
+  logwin.destroy()
+  logging = ""
+  logwin = None
+
+def logWindow ():
+  global logwin
+  logwin = Toplevel (root)
+  logwin.title ("Log Window")
+  note = ttk.Notebook (logwin)
+  tabs = []
+  for c in logging:
+    tabs.append (Frame (logwin))
+    note.add (tabs[-1],text = f"{c}")
+  note.bind("<<NotebookTabChanged>>", on_tab_selected)
+  scroll3 = Scrollbar (logwin)
+  text3 = Text (
+    logwin, height=50, bg=clr, bd=0, font=fnt, width=100,
+    wrap=WORD)
+  note.pack (side=TOP, fill=X)
+  text3.pack (side=LEFT, fill=BOTH, expand=True)
+  scroll3.config (command=text3.yview)
+  text3.config (yscrollcommand=scroll3.set)
+  scroll3.pack (side=RIGHT, fill=Y)
+
+  logwin.protocol("WM_DELETE_WINDOW", on_close)
+  return text3,note,tabs
 
 root = Tk ()
 root.title ('Thoreau scriptor')
@@ -475,6 +532,8 @@ text1.bind ("<Leave>", on_leave)
 text1.bind("<Configure>", movect)
 text2.focus ()
 
+
+
 create_tag_names ()
 seque,dic_wds,regulas,lines = read_args ()
 add_lines (lines)
@@ -485,6 +544,11 @@ mov = False
 
 update_clock_sel ()
 update_clock_mov ()
+
+if "W" in logging:
+  logging = logging.replace ("W","")
+  text3,note,tabs = logWindow ()
+
 root.mainloop ()
 
 
