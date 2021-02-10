@@ -4,18 +4,18 @@
 
 from collections import defaultdict
 from tkinter.ttk import Progressbar
-from random import randint
 import tkinter.font as tkfont
-import numpy as np
 from math import sqrt,sin,cos
+from tabulate import tabulate
+from random import randint
 from tkinter import *
+import numpy as np
 import argparse
-import re
-import csv
-import time
 import pickle
 import pprint
-from tabulate import tabulate
+import time
+import csv
+import re
 
 p = re.compile (r"""
   [a-zA-ZÀ-ÖØ-öø-ÿ]+|
@@ -28,18 +28,13 @@ p = re.compile (r"""
 dumpfile = "seque.dump"
 seque = defaultdict (list)
 sc = defaultdict (lambda: ' ')
-tgs = []
-wds = []
-rowlist = []
-termw,termh = 100,20
+tgs,wds,rowlist,tabs = [],[],[],[]
+termw,termh = 110,30
 yratio = 2.1690 
 hc,wc = None,None
-logwin = None
-note = None
+logwin,note,after_id = None,None,None
 logs = defaultdict (lambda: '')
-logging = ""
-tabs = []
-after_id = None
+search_wd,logging = "",""
 
 tagcolors = [
   ("white", "#fafafa"),
@@ -108,9 +103,6 @@ def seque_plus2 (s,maxm):
     si = " ".join (parolas [i:])
     for a,b,c in seque [si][:n]:
       s1 [a] = add_to (s1[a],b,c)
-    #s1.extend (seque [si][:n])
-    # s1.extend (
-    #  [a for a in seque [si][:n] if a[0] not in [s[0] for s in s1]])
     n = maxm - len (" ".join ([k for k,v in s1.items()]))
     if n <= 0:
       break
@@ -119,7 +111,6 @@ def seque_plus2 (s,maxm):
 def seque_plus (s,n):
   return seque_plus2 (s, n)
 
-search_wd = ""
 
 def log_me (c, s):
   if c in logging:
@@ -134,7 +125,6 @@ def log_me (c, s):
 
 def prt (*xs,sep=' ',end='\n'):
   x = sep.join ([str (x) for x in xs])
-  # text2.insert ("end", x + end)
   log_me ("S",f"{x}")
 
 # lines = ['line 1\n','line 2\n', 'line 3\n']
@@ -142,6 +132,16 @@ def read_args ():
   global logging
   parser = argparse.ArgumentParser (description=
     'Lege regulas, dictionarios e documentos.')
+  t1 = [
+   ('-g', '--ngrammas'),
+   ('-r', '--regulas'),
+   ('-f', '--files'),
+   ('-d', '--dicts'),
+  ]
+  for a,b in t1:
+    parser.add_argument (a,b,nargs='+', action='extend',
+    default=[])
+  """
   parser.add_argument ('-g', '--ngrammas', nargs='+', 
     action='extend', default=[])
   parser.add_argument ('-r', '--regulas', nargs='+', 
@@ -150,6 +150,7 @@ def read_args ():
     action='extend', default=[])
   parser.add_argument ('-d', '--dicts', nargs='+', 
     action='extend', default=[])
+  """
   parser.add_argument ('-l', '--log', default = logging)
   args = parser.parse_args ()
   if args.log[0:1] == "+":
@@ -183,13 +184,8 @@ def aeiou (ste):
   [w,t5,t4,t3,t2,t1,t0] = ste
   a = "abcdefghijklmnopqrstuvwxyz"
   b = "aeiounlsrtcdmpvbghfqjkxyzw"
-  result = ""
-  for c in w:
-    d = c
-    if c in b:
-      d = a [b.index(c)]
-    result += d
-  return result
+  return "".join (
+    [a [b.index(c)] if c in b else c for c in w])
 
 def inner_length (lst):
   result = 0
@@ -268,9 +264,12 @@ def add_seques (s):
     for w in f:
       [word,t5,t4,t3,t2,t1,t0] = w
       tg = aein (word[0]) % 6
-      h = re.search(r"(?<= )" + re.escape (word) + r"(?= )"," " + ln + " ")
+      h = re.search (
+        r"(?<= )" + re.escape (word) + 
+        r"(?= )"," " + ln + " ")
       if h:
-        tgs.append ((tagcolors[tg][0],(h.start()-1,y),(h.end()-1,y)))
+        tgs.append (
+         (tagcolors[tg][0],(h.start()-1,y),(h.end()-1,y)))
   text1.insert ("end", "\n".join (txt))
   log_me ("H",f'\n'.join (txt))
   for tg in tgs:
@@ -333,20 +332,20 @@ def distrlen2 (d,lst):
   log_me ("B",f's = "{s}"\n')
   k,ks = 0,[]
   for x in lst:
-    k += len (x[0])+1
-    ks.append (k/len(s))
+    k += len (x[0]) + 1
+    ks.append (k / len(s))
   t,ts = [],[]
   for t1 in d:
     t.append (t1)
-    ts.append (sum (t)/ sum (d))
+    ts.append (sum (t) / sum (d))
   e = []
   for a in ts:
     c = []
     for b in ks:
       c.append (abs (a-b))
-    # print ([f"{x:.2f}" for x in c])
     e.append (c.index (min (c)))
-  vs = {i:z for i,z in enumerate ([lst[a+1:b+1] for a,b in zip ([-1]+e,e)])}
+  vs = {i:z for i,z in enumerate (
+    [lst[a+1:b+1] for a,b in zip ([-1]+e,e)])}
   return vs 
 
 def ranked_score (wd):
@@ -370,7 +369,8 @@ def new_sc (distr_wds,rowlist):
   sc = defaultdict (lambda: ' ')
   for (y,x1,x2,right) in rowlist:
     assert distr_wds[b], f"distr_wds[{b}] does not exist"
-    ns = [s[0] for s in sorted (distr_wds[b],key=ranked_score,reverse=True)]
+    ns = [s[0] for s in sorted (
+      distr_wds[b],key=ranked_score,reverse=True)]
     a,k = 1,""
     while a <= len (ns) and len (" ".join (ns[:a])) <= x2 - x1:
       if right:
@@ -389,15 +389,12 @@ def get_screen_size ():
   global hc,wc,termw,termh
   w = text1.winfo_width()
   h = text1.winfo_height()
-  # print(f"w × h = {w} × {h}")
   if hc:
     termw = w // wc
     termh = h // hc
   else:
     wc = w // termw
     hc = h // termh
-  # print(f"wc × hc = {wc} × {hc}")
-  # print(f"termw × termh = {termw} × {termh}")
 
 def on_leave (event):
   global sel
@@ -413,7 +410,6 @@ def on_mouse_move (event):
     start = time.time ()
     search_wd = wd_under_cursor
     label1.config (text= " ● " + search_wd)
-    # print (f"'{search_wd}'")
 
 def update_clock_mov ():
   global start_mov, mov
@@ -425,7 +421,6 @@ def update_clock_mov ():
     proginit = 0 
     start_mov = time.time ()
   if proginit >= 100:
-    # print ("proginit > 100")
     get_screen_size ()
     init_seq ()
     mov = False
@@ -460,9 +455,9 @@ def on_tab_selected (event):
     text3.delete ("1.0", END)
     text3.insert (END, logs[tab_text])
 
-def on_close():
+def on_close ():
   global logwin,logging
-  logwin.destroy()
+  logwin.destroy ()
   logging = ""
   logwin = None
 
@@ -485,7 +480,6 @@ def logWindow ():
   scroll3.config (command=text3.yview)
   text3.config (yscrollcommand=scroll3.set)
   scroll3.pack (side=RIGHT, fill=Y)
-
   logwin.protocol("WM_DELETE_WINDOW", on_close)
   return text3,note,tabs
 
@@ -504,13 +498,13 @@ text1 = Text (
   frame1, width=termw, height=termh, bg=clr, bd=0, font=fnt,
   wrap=NONE, cursor="cross")
 text2 = Text (
-  frame2, height=10, bg=clr, bd=0, font=fnt, width=100,
+  frame2, height=10, bg=clr, bd=0, font=fnt, width=100, 
   wrap=WORD)
 label1 = Label (
   frame3, bg=clr, bd=0, width=67, font=fnt, anchor=W, 
   justify=LEFT)
 progress = Progressbar (
-  frame3, orient = HORIZONTAL, length = 250, 
+  frame3, orient=HORIZONTAL, length=250, 
   mode = 'determinate') 
 
 scroll1.pack (side=RIGHT, fill=Y)
@@ -529,10 +523,8 @@ text1.config (yscrollcommand=scroll1.set)
 text2.config (yscrollcommand=scroll2.set)
 text1.bind ("<Any-Motion>", on_mouse_move)
 text1.bind ("<Leave>", on_leave)
-text1.bind("<Configure>", movect)
+text1.bind ("<Configure>", movect)
 text2.focus ()
-
-
 
 create_tag_names ()
 seque,dic_wds,regulas,lines = read_args ()
