@@ -141,16 +141,6 @@ def read_args ():
   for a,b in t1:
     parser.add_argument (a,b,nargs='+', action='extend',
     default=[])
-  """
-  parser.add_argument ('-g', '--ngrammas', nargs='+', 
-    action='extend', default=[])
-  parser.add_argument ('-r', '--regulas', nargs='+', 
-    action='extend', default=[])
-  parser.add_argument ('-f', '--files', nargs='+', 
-    action='extend', default=[])
-  parser.add_argument ('-d', '--dicts', nargs='+', 
-    action='extend', default=[])
-  """
   parser.add_argument ('-l', '--log', default = logging)
   args = parser.parse_args ()
   if args.log[0:1] == "+":
