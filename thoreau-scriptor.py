@@ -4,12 +4,10 @@
 
 from collections import defaultdict
 from tkinter.ttk import Progressbar
-import tkinter.font as tkfont
 from math import sqrt,sin,cos
 from tabulate import tabulate
 from random import randint
 from tkinter import *
-import numpy as np
 import argparse
 import pickle
 import pprint
@@ -48,17 +46,17 @@ tagcolors = [
 def create_emptys ():
   global sc,rowlist
   rowlist = []
-  md = termh//2
+  md = termh // 2
   sc = defaultdict (lambda: ' ')
   r = randint (0,9999)
   for y in range (1,termh+1):
-    a = termw//2+1
+    a = termw // 2 + 1
     b = termw
     a += round (1.5 + 3 * sin ((y+r)/2)) + 5
     rowlist.append ((y,a,b,True))
   for y in range (termh,0,-1):
     a = 0
-    b = termw//2-1
+    b = termw // 2 - 1
     b += round (1.5 + 3 * sin ((y+r)/2)) - 5
     rowlist.append ((y,a,b,False))
   rllen = sum ([(b-a) for (i,a,b,right) in rowlist])
@@ -95,22 +93,20 @@ def add_to (s0,b,c):
   return s0
 
 def seque_plus2 (s,maxm):
-  n = maxm
   parolas = p.findall (s)
-  # s1 = []
   s1 = defaultdict (lambda: [0,0,0,0,0,0]) 
   for i in range (0,len(parolas)+1):
     si = " ".join (parolas [i:])
-    for a,b,c in seque [si][:n]:
+    for a,b,c in seque [si][:maxm]:
       s1 [a] = add_to (s1[a],b,c)
-    n = maxm - len (" ".join ([k for k,v in s1.items()]))
-    if n <= 0:
+    maxm -= len (" ".join ([k for k,v in s1.items()]))
+    if maxm <= 0:
       break
-  return [[k,v[5],v[4],v[3],v[2],v[1],v[0]] for k,v in s1.items()]
+  return [
+    [k,v[5],v[4],v[3],v[2],v[1],v[0]] for k,v in s1.items()]
 
 def seque_plus (s,n):
   return seque_plus2 (s, n)
-
 
 def log_me (c, s):
   if c in logging:
@@ -124,10 +120,8 @@ def log_me (c, s):
     logs[c] = s
 
 def prt (*xs,sep=' ',end='\n'):
-  x = sep.join ([str (x) for x in xs])
-  log_me ("S",f"{x}")
+  log_me ("S", f"{sep.join ([str (x) for x in xs])}")
 
-# lines = ['line 1\n','line 2\n', 'line 3\n']
 def read_args ():
   global logging
   parser = argparse.ArgumentParser (description=
@@ -177,36 +171,6 @@ def aeiou (ste):
   return "".join (
     [a [b.index(c)] if c in b else c for c in w])
 
-def inner_length (lst):
-  result = 0
-  for w in lst:
-    result += len (w)
-  return result
-
-def strs1 (lst):
-  return [a for (a,b,c) in lst]
-
-def strs2 (lst):
-  return [a for (a,b) in lst]
-
-def str3 (lst):
-  result = []
-  for i,(a,b,c) in enumerate (lst):
-    result.append ((f"{a} ",c))
-  return result
-
-def len_fsts2 (wds):
-  result = []
-  for a,b in wds:
-    result.append (a)
-  return len (" ".join (result))
-
-def len_fsts3 (wds):
-  result = []
-  for a,b,c in wds:
-    result.append (a)
-  return len (" ".join (result))
-
 def remove_all_tags ():
   global tgs  
   tgs = []
@@ -224,8 +188,7 @@ def table4 (wds):
   newtab = []
   for j,w in enumerate (wds):
     [a,t5,t4,t3,t2,t1,t0] = w
-    newrow = [j,a,t5,t4,t3,t2,t1,t0,ranked_score(w)]
-    newtab.append (newrow)
+    newtab.append ([j,a,t5,t4,t3,t2,t1,t0,ranked_score(w)])
   return tabulate (newtab, headers=tb5h)
 
 def add_seques (s):
@@ -235,14 +198,14 @@ def add_seques (s):
   text1.delete ("1.0", END)
   
   sg = seque_plus (s,rllen)
-  log_me ("C",f"sg: \n" + table4(sg) + 
+  log_me ("C", f"sg: \n" + table4 (sg) + 
     f"\n\nrllen = {rllen}")
   wds = sorted (sg,key=aeiou)
-  log_me ("D",f"wds: \n" + table4(wds))
+  log_me ("D", f"wds: \n" + table4 (wds))
   distr_wds = distribute (wds,rowlist)
   logtabu = pprint.pformat (table6 (distr_wds))
-  log_me ("F",f"distr_wds:\n{logtabu}") 
-  log_me ("G",f"rowlist:\n{tabulate(rowlist)}") 
+  log_me ("F", f"distr_wds:\n{logtabu}") 
+  log_me ("G", f"rowlist:\n{tabulate(rowlist)}") 
   new_sc (distr_wds,rowlist)
   txt = []
   for y in range (1,termh+1):
@@ -253,7 +216,7 @@ def add_seques (s):
     f = distr_wds [y-1] + distr_wds [2*termh - y]
     for w in f:
       [word,t5,t4,t3,t2,t1,t0] = w
-      tg = aein (word[0]) % 6
+      tg = aein (word [0]) % 6
       h = re.search (
         r"(?<= )" + re.escape (word) + 
         r"(?= )"," " + ln + " ")
@@ -261,7 +224,7 @@ def add_seques (s):
         tgs.append (
          (tagcolors[tg][0],(h.start()-1,y),(h.end()-1,y)))
   text1.insert ("end", "\n".join (txt))
-  log_me ("H",f'\n'.join (txt))
+  log_me ("H", f'\n'.join (txt))
   for tg in tgs:
     tagname,(x1,y1),(x2,y2) = tg
     text1.tag_add (tagname, f"{y1}.{x1}", f"{y2}.{x2}")
@@ -319,7 +282,7 @@ def init_seq ():
 
 def distrlen2 (d,lst):
   s = " ".join ([x[0] for x in lst])
-  log_me ("B",f's = "{s}"\n')
+  log_me ("B", f's = "{s}"\n')
   k,ks = 0,[]
   for x in lst:
     k += len (x[0]) + 1
@@ -340,7 +303,7 @@ def distrlen2 (d,lst):
 
 def ranked_score (wd):
   result = 0
-  for i,t in enumerate (wd[6:0:-1]):
+  for i,t in enumerate (wd [6:0:-1]):
     result += (10 ** i) * t
   return result  
 
@@ -459,8 +422,8 @@ def logWindow ():
   tabs = []
   for c in logging:
     tabs.append (Frame (logwin))
-    note.add (tabs[-1],text = f"{c}")
-  note.bind("<<NotebookTabChanged>>", on_tab_selected)
+    note.add (tabs[-1],text=f"{c}")
+  note.bind ("<<NotebookTabChanged>>", on_tab_selected)
   scroll3 = Scrollbar (logwin)
   text3 = Text (
     logwin, height=50, bg=clr, bd=0, font=fnt, width=100,
@@ -479,11 +442,8 @@ root.iconphoto (False, PhotoImage (file='thoreau-scriptor.png'))
 clr = "#f7c29c"
 fnt = ("Monospace", 9)
 
-frame1 = Frame (root)
-frame3 = Frame (root)
-frame2 = Frame (root)
-scroll1 = Scrollbar (frame1)
-scroll2 = Scrollbar (frame2)
+frame1,frame2,frame3 = Frame (root),Frame (root),Frame (root)
+scroll1,scroll2 = Scrollbar (frame1),Scrollbar (frame2)
 text1 = Text (
   frame1, width=termw, height=termh, bg=clr, bd=0, font=fnt,
   wrap=NONE, cursor="cross")
@@ -521,8 +481,7 @@ seque,dic_wds,regulas,lines = read_args ()
 add_lines (lines)
 start_sel = time.time ()
 start_mov = time.time ()
-sel = False
-mov = False
+sel,mov = False, False
 
 update_clock_sel ()
 update_clock_mov ()
@@ -532,5 +491,4 @@ if "W" in logging:
   text3,note,tabs = logWindow ()
 
 root.mainloop ()
-
 
