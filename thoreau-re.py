@@ -1,9 +1,14 @@
 
 # python thoreau-re.py IED-utf8.txt fi20.txt thesauro-2.txt
+# python thoreau-re.py ~/interlingua/macovei/wikisource/dictionario-encyclopedic-2021-06-28.txt --num 100 --log
 
 from tkinter import *
+from math import *
+import argparse
 import sys
 import time
+
+uns = chr (8203) # spatio invisibile (que appareva non esser invisibile)
 
 def prt (*xs,sep=' ',end='\n'):
   x = sep.join ([str (x) for x in xs])
@@ -13,20 +18,30 @@ def linea (char='-',length=60):
   prt (length * char)
 
 # lines = ['line 1\n','line 2\n', 'line 3\n']
+
 def read_args ():
-  s1 = sys.argv[0]
-  prt (s1.capitalize())
-  prt (len (s1)* "=","\n")
-  idx1,idx2 = "1.0", "1."+str(len (s1))
-  text1.tag_add("gray", idx1, idx2)
-  prt ('Dictionarios legite / argumentos del programma')
-  linea ()
+  parser = argparse.ArgumentParser ()
+  parser.add_argument ('dictfiles', nargs='*')
+  parser.add_argument ("-n", "--num", type=int, default=1000)
+  parser.add_argument("--nonformat", action="store_true")
+  parser.add_argument("--paramlist", action="store_true")
+  parser.add_argument("--log", action="store_true")
+  args = parser.parse_args ()
+  return (args)
+
+args = read_args()
+
+if args.paramlist:
+  for arg in vars (args):
+    print (f"{arg}: {getattr (args, arg)}")
+
+def read_args2 ():
   lines = []
-  arguments = sys.argv
-  for i,e in enumerate (arguments):
-    if i > 0:
-      prt (f"{i}: {e}")
-      filename = arguments[i]
+  prt ("Files de dictionarios:")
+  linea ()
+  for i,e in enumerate (args.dictfiles):
+      prt (f"{i+1}: {e}")
+      filename = args.dictfiles[i]
       with open (filename) as f:
         lines = lines + f.readlines ()
   linea ()
@@ -67,26 +82,86 @@ def find_all (s,sub):
     yield start
     start = start + len (sub) 
 
-def highlight (result,word):
+def inverse (word):
+  txt = text1.get ("1.0", END).split("\n")
   regex = try_compile (word)
-  for i,n in enumerate (result):
+  for i,n in enumerate (txt):
     for m in regex.finditer (n):
       a,b = m.span ()
       idx1 = f"{i+1}.{a}"
       idx2 = f"{i+1}.{b}"
-      text1.tag_add("gray", idx1, idx2)
+      text1.tag_add ("inverse", idx1, idx2)
+
+def bold ():
+  txt = text1.get ("1.0", END).split("\n")
+  regex = r"'''(.*?)'''"
+  for i,n in enumerate (txt):
+    for m in re.finditer (regex,n):
+      new = 3*uns + m.group (1) + 3*uns
+      a,b = m.span ()
+      idx1 = f"{i+1}.{a}"
+      idx2 = f"{i+1}.{b}"
+      idx3 = f"{i+1}.{a+len(new)}"
+      text1.delete (idx1,idx2)
+      text1.insert (idx1,new)
+      text1.tag_add ("bold", idx1, idx3)
+
+def italic ():
+  txt = text1.get ("1.0", END).split("\n")
+  regex = r"''(.*?)''"
+  for i,n in enumerate (txt):
+    for m in re.finditer (regex,n):
+      a,b = m.span ()
+      new = 2*uns + m.group (1) + 2*uns
+      idx1 = f"{i+1}.{a}"
+      idx2 = f"{i+1}.{b}"
+      idx3 = f"{i+1}.{a+len(new)}"
+      text1.delete (idx1,idx2)
+      text1.insert (idx1,new)
+      text1.tag_add ("italic", idx1, idx3)
+
+def underline ():
+  txt = text1.get ("1.0", END).split("\n")
+  regex = r"<u>(.*?)</u>"
+  for i,n in enumerate (txt):
+    for m in re.finditer (regex,n):
+      a,b = m.span ()
+      new = 3*uns + m.group (1) + 4*uns
+      idx1 = f"{i+1}.{a}"
+      idx2 = f"{i+1}.{b}"
+      idx3 = f"{i+1}.{a+len(new)}"
+      text1.delete (idx1,idx2)
+      text1.insert (idx1,new)
+      text1.tag_add ("underline", idx1, idx3)
+
+def purify ():
+  idx = '1.0'
+  while 1:
+    idx = text1.search (uns, idx)
+    if not idx: break
+    lastidx = f"{idx}+{len(uns)}c"
+    text1.delete (idx, lastidx)
 
 def return_pressed (event):
   start = time.time()
   word = text2.get ("1.0", "end-1c")
   label1.config (text= " ● " + word)
-  print (word)
   result = find_words (word)
   text1.delete ("1.0", END)
   text1.insert ("1.0", "".join (result))
-  highlight (result,word)
+  bold ()
+  italic ()
+  underline ()
+  purify ()
+  inverse (word)
   end = time.time()
-  print (end - start) 
+  total = end - start
+  decimals = abs (floor (log (total,10))) + 2
+  if args.log:
+    print ("\n" + word)
+    print (len(word)*"=" + "\n")
+    print (f"({total:.{decimals}} s)\n") 
+    print ("\n".join(result) + "\n")
   text2.tag_add (SEL, "1.0", "end")
   text2.mark_set (INSERT, "1.0")
   text2.see (INSERT)
@@ -105,12 +180,11 @@ def int_def (st,default=0):
     result = default
   return result
 
-max_m = 200
+max_m = args.num
 
 def set_max_m ():
   global max_m
-  max_m = int_def (spin1.get(),default=200)
-  # print ("set_max_n", max_m)
+  max_m = int_def (spin1.get(),default=args.num)
   return_pressed (None)
 
 root = Tk ()
@@ -152,7 +226,13 @@ text2.bind ('<Return>', return_pressed)
 text2.focus ()
 
 text1.tag_configure (
-  "gray", foreground="#ffffff", background="#444444")
-lines = read_args ()
+  "inverse", foreground="#eee", background="#444")
+text1.tag_configure (
+  "bold", font= fnt[0] + " " + str(fnt[1]) + " bold")
+text1.tag_configure (
+  "italic", font= fnt[0] + " " + str(fnt[1]) + " italic")
+text1.tag_configure (
+  "underline", font= fnt[0] + " " + str(fnt[1]) + " underline")
+lines = read_args2 ()
 root.mainloop ()
 
