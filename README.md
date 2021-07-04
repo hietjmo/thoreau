@@ -2,6 +2,16 @@
 
 Text tools in interlingua
 
+## Thoreau re
+
+Cerca in dictionarios (files texto). Per exemplo
+
+`python thoreau-re.py ~/interlingua/macovei/wikisource/dictionario-encyclopedic-2021-06-28.txt --num 100 --log`
+
+![thoreau-re-screencap-1](https://github.com/hietjmo/thoreau/blob/main/scriptor-screencap-2.png?raw=true)
+
+![thoreau-re-screencap-2](https://github.com/hietjmo/thoreau/blob/main/scriptor-screencap-2.png?raw=true)
+
 ## Thoreau scriptor
 
 Le 'ngrammas' que le programma usa es hic: https://github.com/hietjmo/frequentia/tree/main/ngrams
