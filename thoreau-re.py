@@ -8,8 +8,6 @@ import argparse
 import sys
 import time
 
-uns = chr (8203) # spatio invisibile (que appareva non esser invisibile)
-
 def prt (*xs,sep=' ',end='\n'):
   x = sep.join ([str (x) for x in xs])
   text1.insert ("end", x + end)
@@ -92,55 +90,26 @@ def inverse (word):
       idx2 = f"{i+1}.{b}"
       text1.tag_add ("inverse", idx1, idx2)
 
-def bold ():
+def add_style (t):
+  stilo,expr = t
   txt = text1.get ("1.0", END).split("\n")
-  regex = r"'''(.*?)'''"
-  for i,n in enumerate (txt):
-    for m in re.finditer (regex,n):
-      new = 3*uns + m.group (1) + 3*uns
+  regex = try_compile (expr)
+  for i,s in enumerate (txt):
+    lastpos = 0
+    while True:
+      m = regex.search (s,lastpos)
+      if not m: 
+        break
+      new = m.group (1)
       a,b = m.span ()
       idx1 = f"{i+1}.{a}"
       idx2 = f"{i+1}.{b}"
-      idx3 = f"{i+1}.{a+len(new)}"
+      lastpos = a + len (new)
+      idx3 = f"{i+1}.{lastpos}"
       text1.delete (idx1,idx2)
       text1.insert (idx1,new)
-      text1.tag_add ("bold", idx1, idx3)
-
-def italic ():
-  txt = text1.get ("1.0", END).split("\n")
-  regex = r"''(.*?)''"
-  for i,n in enumerate (txt):
-    for m in re.finditer (regex,n):
-      a,b = m.span ()
-      new = 2*uns + m.group (1) + 2*uns
-      idx1 = f"{i+1}.{a}"
-      idx2 = f"{i+1}.{b}"
-      idx3 = f"{i+1}.{a+len(new)}"
-      text1.delete (idx1,idx2)
-      text1.insert (idx1,new)
-      text1.tag_add ("italic", idx1, idx3)
-
-def underline ():
-  txt = text1.get ("1.0", END).split("\n")
-  regex = r"<u>(.*?)</u>"
-  for i,n in enumerate (txt):
-    for m in re.finditer (regex,n):
-      a,b = m.span ()
-      new = 3*uns + m.group (1) + 4*uns
-      idx1 = f"{i+1}.{a}"
-      idx2 = f"{i+1}.{b}"
-      idx3 = f"{i+1}.{a+len(new)}"
-      text1.delete (idx1,idx2)
-      text1.insert (idx1,new)
-      text1.tag_add ("underline", idx1, idx3)
-
-def purify ():
-  idx = '1.0'
-  while 1:
-    idx = text1.search (uns, idx)
-    if not idx: break
-    lastidx = f"{idx}+{len(uns)}c"
-    text1.delete (idx, lastidx)
+      text1.tag_add (stilo, idx1, idx3)
+      s = regex.sub (new,s,count=1)
 
 def return_pressed (event):
   start = time.time()
@@ -149,11 +118,13 @@ def return_pressed (event):
   result = find_words (word)
   text1.delete ("1.0", END)
   text1.insert ("1.0", "".join (result))
-  bold ()
-  italic ()
-  underline ()
-  purify ()
-  inverse (word)
+  repl_table = [
+    ("bold", r"'''(.*?)'''"),
+    ("italic", r"''(.*?)''"),
+    ("underline", r"<u>(.*?)</u>"),
+    ("inverse", fr"({word})")]
+  for t in repl_table:
+    add_style (t)
   end = time.time()
   total = end - start
   decimals = abs (floor (log (total,10))) + 2
@@ -226,13 +197,10 @@ text2.bind ('<Return>', return_pressed)
 text2.focus ()
 
 text1.tag_configure (
-  "inverse", foreground="#eee", background="#444")
-text1.tag_configure (
-  "bold", font= fnt[0] + " " + str(fnt[1]) + " bold")
-text1.tag_configure (
-  "italic", font= fnt[0] + " " + str(fnt[1]) + " italic")
-text1.tag_configure (
-  "underline", font= fnt[0] + " " + str(fnt[1]) + " underline")
+  "inverse", background="#f3a6cd")
+for st in ["bold","italic","underline"]:
+  text1.tag_configure (
+    st, font=f"{fnt[0]} {fnt[1]} {st}")
 lines = read_args2 ()
 root.mainloop ()
 
