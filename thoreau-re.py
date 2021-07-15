@@ -80,16 +80,6 @@ def find_all (s,sub):
     yield start
     start = start + len (sub) 
 
-def inverse (word):
-  txt = text1.get ("1.0", END).split("\n")
-  regex = try_compile (word)
-  for i,n in enumerate (txt):
-    for m in regex.finditer (n):
-      a,b = m.span ()
-      idx1 = f"{i+1}.{a}"
-      idx2 = f"{i+1}.{b}"
-      text1.tag_add ("inverse", idx1, idx2)
-
 def add_style (t):
   stilo,expr = t
   txt = text1.get ("1.0", END).split("\n")
