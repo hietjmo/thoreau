@@ -1,4 +1,6 @@
 
+# python thoreau-re.py --nod IED-utf8.txt fi20.txt thesauro-2.txt dei-2021-09-14.txt
+
 # python thoreau-re.py IED-utf8.txt fi20.txt thesauro-2.txt
 # python thoreau-re.py ~/interlingua/macovei/wikisource/dictionario-encyclopedic-2021-06-28.txt --num 100 --log
 
@@ -9,9 +11,10 @@ import sys
 import time
 
 def prt (*xs,sep=' ',end='\n'):
+  text1.config (state=NORMAL)
   x = sep.join ([str (x) for x in xs])
   text1.insert ("end", x + end)
-
+  text1.config (state=DISABLED)
 def linea (char='-',length=60):
   prt (length * char)
 
@@ -22,6 +25,7 @@ def read_args ():
   parser.add_argument ('dictfiles', nargs='*')
   parser.add_argument ("-n", "--num", type=int, default=1000)
   parser.add_argument("--nonformat", action="store_true")
+  parser.add_argument("--nod", action="store_true")
   parser.add_argument("--paramlist", action="store_true")
   parser.add_argument("--log", action="store_true")
   args = parser.parse_args ()
@@ -81,6 +85,7 @@ def find_all (s,sub):
     start = start + len (sub) 
 
 def add_style (t):
+  text1.config (state=NORMAL)
   stilo,expr = t
   txt = text1.get ("1.0", END).split("\n")
   regex = try_compile (expr)
@@ -100,8 +105,10 @@ def add_style (t):
       text1.insert (idx1,new)
       text1.tag_add (stilo, idx1, idx3)
       s = regex.sub (new,s,count=1)
+  text1.config (state=DISABLED)
 
 def return_pressed (event):
+  text1.config (state=NORMAL)
   start = time.time()
   word = text2.get ("1.0", "end-1c")
   label1.config (text= " ● " + word)
@@ -126,6 +133,7 @@ def return_pressed (event):
   text2.tag_add (SEL, "1.0", "end")
   text2.mark_set (INSERT, "1.0")
   text2.see (INSERT)
+  text1.config (state=DISABLED)
   return "break" # handled, do not send further!
 
 def callback (sv,w):
@@ -147,6 +155,29 @@ def set_max_m ():
   global max_m
   max_m = int_def (spin1.get(),default=args.num)
   return_pressed (None)
+
+
+def on_key_press (event):
+  if not args.nod:
+    if event.keysym=="adiaeresis":
+      text2.insert (INSERT, 'ä')
+    if event.keysym=="Adiaeresis":
+      text2.insert (INSERT, 'Ä')
+    if event.keysym=="odiaeresis":
+      text2.insert (INSERT, 'ö')
+    if event.keysym=="Odiaeresis":
+      text2.insert (INSERT, 'Ö')
+
+def on_enter (event):
+  text2.tag_add (SEL, "1.0", "end")
+  text2.mark_set (INSERT, "1.0")
+  text2.see (INSERT)
+
+def handle_focus (event):
+  if event.widget == root:
+    text2.tag_add (SEL, "1.0", "end")
+    text2.mark_set (INSERT, "1.0")
+    text2.see (INSERT)
 
 root = Tk ()
 root.title ('Cerca in dictionarios')
@@ -183,7 +214,13 @@ spinvar.trace('w', lambda name, index, mode, sv=spinvar: callback
   (spinvar,spin1))
 scroll1.config (command=text1.yview)
 text1.config (yscrollcommand=scroll1.set)
+text1.config (state=DISABLED)
 text2.bind ('<Return>', return_pressed)
+text2.bind ('<Enter>', on_enter)
+text2.bind ('<KeyPress>', on_key_press )
+root.bind ("<FocusIn>", handle_focus)
+
+
 text2.focus ()
 
 text1.tag_configure (
