@@ -1,5 +1,5 @@
 
-# python thoreau-re.py --nod IED-utf8.txt fi20.txt thesauro-2.txt dei-2021-09-14.txt
+# python thoreau-re.py --diaereses IED-utf8.txt fi20.txt thesauro-2.txt dei-2021-09-14.txt
 
 # python thoreau-re.py IED-utf8.txt fi20.txt thesauro-2.txt
 # python thoreau-re.py ~/interlingua/macovei/wikisource/dictionario-encyclopedic-2021-06-28.txt --num 100 --log
@@ -24,10 +24,10 @@ def read_args ():
   parser = argparse.ArgumentParser ()
   parser.add_argument ('dictfiles', nargs='*')
   parser.add_argument ("-n", "--num", type=int, default=1000)
-  parser.add_argument("--nonformat", action="store_true")
-  parser.add_argument("--nod", action="store_true")
-  parser.add_argument("--paramlist", action="store_true")
-  parser.add_argument("--log", action="store_true")
+  parser.add_argument ("--nonformat", action="store_true")
+  parser.add_argument ("--diaereses", action="store_true")
+  parser.add_argument ("--paramlist", action="store_true")
+  parser.add_argument ("--log", action="store_true")
   args = parser.parse_args ()
   return (args)
 
@@ -156,9 +156,8 @@ def set_max_m ():
   max_m = int_def (spin1.get(),default=args.num)
   return_pressed (None)
 
-
 def on_key_press (event):
-  if not args.nod:
+  if args.diaereses:
     if event.keysym=="adiaeresis":
       text2.insert (INSERT, 'ä')
     if event.keysym=="Adiaeresis":
@@ -217,9 +216,8 @@ text1.config (yscrollcommand=scroll1.set)
 text1.config (state=DISABLED)
 text2.bind ('<Return>', return_pressed)
 text2.bind ('<Enter>', on_enter)
-text2.bind ('<KeyPress>', on_key_press )
+text2.bind ('<KeyPress>', on_key_press)
 root.bind ("<FocusIn>", handle_focus)
-
 
 text2.focus ()
 
