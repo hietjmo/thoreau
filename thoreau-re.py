@@ -1,3 +1,4 @@
+#!/usr/bin/python
 
 # python thoreau-re.py --diaereses IED-utf8.txt fi20.txt thesauro-2.txt dei-2021-09-14.txt
 
@@ -10,11 +11,14 @@ import argparse
 import sys
 import time
 
+history = []
+
 def prt (*xs,sep=' ',end='\n'):
   text1.config (state=NORMAL)
   x = sep.join ([str (x) for x in xs])
   text1.insert ("end", x + end)
   text1.config (state=DISABLED)
+
 def linea (char='-',length=60):
   prt (length * char)
 
@@ -22,12 +26,14 @@ def linea (char='-',length=60):
 
 def read_args ():
   parser = argparse.ArgumentParser ()
-  parser.add_argument ('dictfiles', nargs='*')
-  parser.add_argument ("-n", "--num", type=int, default=1000)
-  parser.add_argument ("--nonformat", action="store_true")
-  parser.add_argument ("--diaereses", action="store_true")
-  parser.add_argument ("--paramlist", action="store_true")
-  parser.add_argument ("--log", action="store_true")
+  pad = parser.add_argument
+  pad ('dictfiles', nargs='*')
+  pad ("-n", "--num", type=int, default=1000)
+  pad ("--nonformat", action="store_true")
+  pad ("--diaereses", action="store_true")
+  pad ("--incsearch", action="store_true")
+  pad ("--paramlist", action="store_true")
+  pad ("--log", action="store_true")
   args = parser.parse_args ()
   return (args)
 
@@ -76,6 +82,16 @@ def find_words (word):
     result.append (f"(+ {d} alteres)")
   return result
 
+def show_history ():
+  text1.config (state=NORMAL)
+  global history
+  result = (["Historia:"] +
+    [str (i+1) + " ▶ " + s for i,s in enumerate (history)])
+  print (history)
+  text1.delete ("1.0", END)
+  text1.insert ("1.0", "\n".join (result))
+  text1.config (state=DISABLED)
+
 def find_all (s,sub):
   start = 0
   while True:
@@ -107,7 +123,8 @@ def add_style (t):
       s = regex.sub (new,s,count=1)
   text1.config (state=DISABLED)
 
-def return_pressed (event):
+def return_pressed (event,sel=True):
+  global history
   text1.config (state=NORMAL)
   start = time.time()
   word = text2.get ("1.0", "end-1c")
@@ -115,6 +132,7 @@ def return_pressed (event):
   result = find_words (word)
   text1.delete ("1.0", END)
   text1.insert ("1.0", "".join (result))
+  text1.mark_set (INSERT, "30.0")
   repl_table = [
     ("bold", r"'''(.*?)'''"),
     ("italic", r"''(.*?)''"),
@@ -130,11 +148,12 @@ def return_pressed (event):
     print (len(word)*"=" + "\n")
     print (f"({total:.{decimals}} s)\n") 
     print ("\n".join(result) + "\n")
-  text2.tag_add (SEL, "1.0", "end")
-  text2.mark_set (INSERT, "1.0")
-  text2.see (INSERT)
   text1.config (state=DISABLED)
-  return "break" # handled, do not send further!
+  history.append (word)
+  history = history [-max_m:]
+  if sel:
+    select_input ()
+    return "break" # handled, do not send further!
 
 def callback (sv,w):
   s = sv.get ()
@@ -156,7 +175,47 @@ def set_max_m ():
   max_m = int_def (spin1.get(),default=args.num)
   return_pressed (None)
 
+def add_backslash_Ws ():
+  text2.insert ('1.0', '\W')
+  text2.insert (END, '\W')
+  return_pressed (None)
+
+def select_input ():
+  text2.tag_add (SEL, "1.0", "end")
+  text2.mark_set (INSERT, "1.0")
+  text2.see (INSERT)
+
+def select_all ():
+  text2.tag_add(SEL, "1.0", END)
+  text2.mark_set(INSERT, "1.0")
+  text2.see(INSERT)
+  return 'break'
+
+def scroll_up ():
+  text1.config (state=NORMAL)
+  index = text1.index(INSERT)
+  row,col = index.split(".")
+  row,col = int (row),int (col)
+  text1.mark_set (INSERT, f"{row-30}.0")
+  text1.see (INSERT)
+  text1.config (state=DISABLED)
+  select_input ()
+  return 'break'
+
+def scroll_down ():
+  text1.config (state=NORMAL)
+  index = text1.index(INSERT)
+  row,col = index.split(".")
+  row,col = int (row),int (col)
+  text1.mark_set (INSERT, f"{row+30}.0")
+  text1.see (INSERT)
+  text1.config (state=DISABLED)
+  select_input ()
+  return 'break'
+
 def on_key_press (event):
+  if args.log:
+    print (event.keysym)
   if args.diaereses:
     if event.keysym=="adiaeresis":
       text2.insert (INSERT, 'ä')
@@ -166,17 +225,44 @@ def on_key_press (event):
       text2.insert (INSERT, 'ö')
     if event.keysym=="Odiaeresis":
       text2.insert (INSERT, 'Ö')
+  # if args.incsearch:
+  #   return_pressed (event,sel=False)
+
+def on_release (event):
+  if args.incsearch:
+    return_pressed (event,sel=False)
+
+def on_control_a (event):
+  select_all ()
+
+def on_control_h (event):
+  show_history ()
+
+def on_control_w (event):
+  add_backslash_Ws ()
+
+def on_control_l (event):
+  args.log = not args.log
+
+def on_control_i (event):
+  args.incsearch = not args.incsearch
+  return 'break'
+
+def on_control_d (event):
+  args.diaereses = not args.diaereses
+
+def on_prior (event):
+  scroll_up ()
+
+def on_next (event):
+  scroll_down ()
 
 def on_enter (event):
-  text2.tag_add (SEL, "1.0", "end")
-  text2.mark_set (INSERT, "1.0")
-  text2.see (INSERT)
+  select_input ()
 
 def handle_focus (event):
   if event.widget == root:
-    text2.tag_add (SEL, "1.0", "end")
-    text2.mark_set (INSERT, "1.0")
-    text2.see (INSERT)
+    select_input ()
 
 root = Tk ()
 root.title ('Cerca in dictionarios')
@@ -217,7 +303,20 @@ text1.config (state=DISABLED)
 text2.bind ('<Return>', return_pressed)
 text2.bind ('<Enter>', on_enter)
 text2.bind ('<KeyPress>', on_key_press)
-root.bind ("<FocusIn>", handle_focus)
+text2.bind ("<KeyRelease>", on_release)
+root_binds = [
+  ("<FocusIn>", handle_focus),
+  ("<Control-h>", on_control_h),
+  ("<Control-y>", on_control_i),
+  ("<Control-w>", on_control_w),
+  ("<F1>", on_control_w),
+  ("<Control-l>", on_control_l),
+  ("<Control-a>", on_control_a),
+  ("<Control-d>", on_control_d),
+  ("<Prior>", on_prior),
+  ("<Next>", on_next), ]
+for a,b in root_binds:
+  root.bind (a,b)
 
 text2.focus ()
 
@@ -228,4 +327,7 @@ for st in ["bold","italic","underline"]:
     st, font=f"{fnt[0]} {fnt[1]} {st}")
 lines = read_args2 ()
 root.mainloop ()
+
+# Make this file executable:
+# :!chmod +x %
 
